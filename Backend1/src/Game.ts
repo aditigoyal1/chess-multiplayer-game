@@ -1,6 +1,12 @@
 import { WebSocket } from "ws";
 import { Chess } from "chess.js";
-import { GAME_OVER, INIT_GAME, MOVE ,WRONG_PLAYER_MOVE} from "./message";
+import {
+  GAME_OVER,
+  INIT_GAME,
+  MOVE,
+  WRONG_PLAYER_MOVE,
+  INVALID_MOVE,
+} from "./message";
 
 export class Game {
   public player1: WebSocket;
@@ -14,32 +20,32 @@ export class Game {
     this.player2 = player2;
     this.board = new Chess();
     this.startTime = new Date();
-    this.moveCount =0;
+    this.moveCount = 0;
 
     // whenever the game start, we need to let them know tht the game has started with their color.
 
-
     try {
-        this.player1.send(JSON.stringify({
-            type: INIT_GAME,
-            payload:{
-                color:"white"
-            }
-        }));
-    
-        this.player2.send(JSON.stringify({
-            type: INIT_GAME,
-            payload:{
-                color:"black"
-            }
-        }));
-        
+      this.player1.send(
+        JSON.stringify({
+          type: INIT_GAME,
+          payload: {
+            color: "white",
+          },
+        })
+      );
+
+      this.player2.send(
+        JSON.stringify({
+          type: INIT_GAME,
+          payload: {
+            color: "black",
+          },
+        })
+      );
     } catch (error) {
-        console.log("Errooor==>", error)
-        return
-        
+      console.log("Errooor==>", error);
+      return;
     }
-   
   }
 
   makeMove(
@@ -49,24 +55,28 @@ export class Game {
       to: string;
     }
   ) {
+    console.log("Moved Received", move);
     // validation here whether the correct player moving or not.
     if (this.moveCount % 2 === 0 && this.player1 != socket) {
-        this.player2.send(
-            JSON.stringify({
-              type: WRONG_PLAYER_MOVE,
-              message: "It's not your turn!!"
-            })
-          );
+      console.log("Wrong player Moved", "player1");
+      this.player2.send(
+        JSON.stringify({
+          type: WRONG_PLAYER_MOVE,
+          message: "It's not your turn!!",
+        })
+      );
       return;
     }
 
     if (this.moveCount % 2 === 1 && this.player2 != socket) {
-        this.player1.send(
-            JSON.stringify({
-              type: WRONG_PLAYER_MOVE,
-              message: "It's not your turn!!"
-            })
-          );
+      console.log("Wrong player Moved", "player2");
+
+      this.player1.send(
+        JSON.stringify({
+          type: WRONG_PLAYER_MOVE,
+          message: "It's not your turn!!",
+        })
+      );
       return;
     }
 
@@ -76,9 +86,16 @@ export class Game {
       this.board.move(move);
       this.moveCount++;
     } catch (error) {
-        console.error(error);
-        return
+      console.error(error);
+      socket.send(
+        JSON.stringify({
+          type: INVALID_MOVE,
+          message: "Wrong move",
+        })
+      );
+      return;
     }
+    console.log("updated the board");
 
     // check if the game is over or not
     if (this.board.isGameOver()) {
@@ -99,7 +116,7 @@ export class Game {
           },
         })
       );
-      return;
+      // return;
     }
 
     //emit the move and moveCount already increased
@@ -107,20 +124,22 @@ export class Game {
       this.player1.send(
         JSON.stringify({
           type: MOVE,
-          move: move,
+          payload: {
+            move: move,
+          },
         })
       );
-      return
+      return;
     } else {
       this.player2.send(
         JSON.stringify({
           type: MOVE,
-          move: move,
+          payload: {
+            move: move,
+          },
         })
       );
-      return
+      return;
     }
-
-    
   }
 }
